@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Instalment, Simplified: income explainer prototype</title>
+<style>
+:root{
+  --bg:#eef2f5; --surface:#ffffff; --ink:#14212b; --muted:#4a5b68; --line:#c9d5dc;
+  --accent:#0b6b5c; --accent-ink:#ffffff; --note-bg:#e1f2ec; --note-ink:#0f2f29;
+  --warn:#9a3412; --ok:#166534; --info:#1e4f8a; --field:#ffffff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d161c; --surface:#16222a; --ink:#e8eff3; --muted:#a9b9c4; --line:#2b3c47;
+    --accent:#3cc3a8; --accent-ink:#07201b; --note-bg:#123229; --note-ink:#d6f2ea;
+    --warn:#fb9b6b; --ok:#6fdc97; --info:#8bbcf5; --field:#0f1a20; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d161c; --surface:#16222a; --ink:#e8eff3; --muted:#a9b9c4; --line:#2b3c47;
+  --accent:#3cc3a8; --accent-ink:#07201b; --note-bg:#123229; --note-ink:#d6f2ea;
+  --warn:#fb9b6b; --ok:#6fdc97; --info:#8bbcf5; --field:#0f1a20; color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+header.top{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--surface)}
+header.top h1{margin:0;font-size:1.05rem;font-weight:650}
+header.top p{margin:2px 0 0;font-size:.85rem;color:var(--muted);max-width:70ch}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;padding:20px;align-items:start}
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;justify-content:center;overflow-x:auto}
+
+/* Portal frame (all sizes in em so text zoom reflows) */
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;max-width:100%;
+  box-shadow:0 1px 0 var(--line);font-size:16px}
+.frame.phone{width:360px}
+.frame.desktop{width:760px}
+.frame .bar{display:flex;align-items:center;justify-content:space-between;padding:.7em 1em;border-bottom:1px solid var(--line);font-weight:650;font-size:.95em}
+.frame .bar small{font-weight:400;color:var(--muted);font-size:.8em}
+.steps{display:flex;gap:.35em;padding:.8em 1em 0;margin:0;list-style:none}
+.steps li{flex:1;height:.3em;border-radius:1em;background:var(--line)}
+.steps li.done,.steps li.now{background:var(--accent)}
+.steps li.now{opacity:.55}
+.steplabel{padding:.4em 1em 0;font-size:.82em;color:var(--muted)}
+.screen{padding:1em 1em 1.3em}
+.screen h2{margin:.2em 0 .5em;font-size:1.25em;line-height:1.25}
+.screen p{margin:.4em 0}
+.box{border:1px solid var(--line);border-radius:12px;padding:.8em 1em;margin:.8em 0}
+.box b{font-size:1.2em}
+label.q{display:block;font-weight:600;line-height:1.35}
+.hint{display:block;font-size:.88em;color:var(--muted);font-weight:400;margin-top:.2em}
+.note{background:var(--note-bg);color:var(--note-ink);border-radius:12px;padding:.75em .9em;margin:.7em 0;font-size:.92em;line-height:1.45}
+.note p{margin:0}
+.note b{font-weight:650}
+.note .more{margin-top:.5em;background:none;border:0;padding:.35em 0;color:inherit;font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}
+.note .det{margin-top:.4em!important}
+.field{display:flex;align-items:center;gap:.5em;margin-top:.5em}
+.field input{flex:1;min-width:0;font:inherit;padding:.65em .8em;border:1.5px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink)}
+.field span{font-weight:600}
+.err{color:var(--warn);font-size:.9em;margin-top:.3em;min-height:1.2em}
+.row{display:flex;gap:.6em;flex-wrap:wrap;margin-top:.9em}
+button.btn{font:inherit;font-weight:600;padding:.7em 1.1em;border-radius:10px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+button.btn.sec{background:transparent;color:var(--ink);border-color:var(--line)}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+.plan{display:flex;gap:.6em;align-items:flex-start;border:1.5px solid var(--line);border-radius:12px;padding:.75em .9em;margin:.5em 0;cursor:pointer}
+.plan input{margin-top:.3em}
+.ok{color:var(--ok);font-weight:650}
+
+/* Panel */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;position:sticky;top:12px;max-height:calc(100vh - 24px);display:flex;flex-direction:column}
+@media (max-width:980px){.panel{position:static;max-height:none}}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;font:inherit;font-size:.9rem;padding:.7em .4em;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:650;border-bottom-color:var(--accent)}
+.tabpane{padding:14px 16px;overflow:auto;font-size:.9rem}
+.tabpane[hidden]{display:none}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;margin-bottom:6px}
+.ctl label{color:var(--ink)}
+.ctl select,.ctl input[type=text]{font:inherit;font-size:.88rem;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);max-width:170px}
+.ctl input[type=checkbox]{width:18px;height:18px;justify-self:end}
+.panel h3{margin:14px 0 6px;font-size:.92rem}
+.panel .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.panel .btns button{font:inherit;font-size:.85rem;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);cursor:pointer}
+.log{list-style:none;margin:0;padding:0}
+.log li{padding:6px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.log code{font:.78rem ui-monospace,Menlo,Consolas,monospace;color:var(--muted);word-break:break-word}
+.chk{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.chk .s{font-weight:700;font-size:.78rem;padding:1px 7px;border-radius:99px;border:1px solid currentColor;height:fit-content;white-space:nowrap}
+.chk .s.pass{color:var(--ok)} .chk .s.fail{color:var(--warn)} .chk .s.info{color:var(--info)}
+.chk b{font-size:.88rem} .chk small{display:block;color:var(--muted);font-size:.8rem;grid-column:2}
+.muted{color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Instalment, Simplified: plain explainer for why income is asked</h1>
+  <p>Clickable prototype for the income question. All data is illustrative sample data; wording and the retention figure are dummy values, not approved text. Nothing is stored or sent.</p>
+</header>
+
+<div class="wrap">
+  <div class="stage"><div class="frame phone" id="frame"></div></div>
+
+  <aside class="panel" aria-label="Prototype controls">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="t1">Controls</button>
+      <button role="tab" aria-selected="false" data-tab="t2">Events <span id="evcount"></span></button>
+      <button role="tab" aria-selected="false" data-tab="t3">Checks <span id="chkcount"></span></button>
+    </div>
+
+    <div class="tabpane" id="t1">
+      <div class="ctl"><label for="c-lang">Portal language</label>
+        <select id="c-lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+        <label for="c-dev">Screen size</label>
+        <select id="c-dev"><option value="phone">Phone, 360 px</option><option value="desktop">Desktop</option></select>
+        <label for="c-zoom">Text size</label>
+        <select id="c-zoom"><option value="1">100%</option><option value="2">200%</option></select>
+        <label for="c-seg">Starter type</label>
+        <select id="c-seg"><option value="variable_income">Variable income / shift work</option><option value="fixed_salary">Fixed salary</option></select>
+        <label for="c-grp">Test group</label>
+        <select id="c-grp"><option value="pilot">Pilot (note shown)</option><option value="control">Control (no note)</option></select>
+      </div>
+      <h3>Release gates</h3>
+      <div class="ctl">
+        <label for="c-sw">Feature switch on (kill switch)</label><input type="checkbox" id="c-sw" checked>
+        <label for="c-ap">Privacy and compliance approved the wording</label><input type="checkbox" id="c-ap" checked>
+        <label for="c-ret">Retention period in months (single source, from privacy)</label><input type="text" id="c-ret" inputmode="numeric" value="6" aria-describedby="retHelp">
+      </div>
+      <p class="muted" id="retHelp">Empty, zero or unapproved: the note stays off and no placeholder text appears (safe default).</p>
+      <h3>Options</h3>
+      <div class="ctl">
+        <label for="c-hint">Period hint beside the field (should-have)</label><input type="checkbox" id="c-hint" checked>
+        <label for="c-long">Simulate a long copy edit (over 60 words)</label><input type="checkbox" id="c-long">
+      </div>
+      <div class="btns">
+        <button id="b-jump">Jump to income question</button>
+        <button id="b-restart">Restart journey</button>
+      </div>
+      <p class="muted" style="margin-top:14px">Reference baselines (sample data): continuation to the income document step 80.7% (all starters), agreement rate 46.0% (41.6% for variable-income starters). The segment baseline for the primary metric is not in the pack, and this prototype measures nothing real.</p>
+    </div>
+
+    <div class="tabpane" id="t2" hidden>
+      <p class="muted">Funnel events as they would fire. The income value is never logged.</p>
+      <ul class="log" id="log" aria-live="polite"></ul>
+      <div class="btns"><button id="b-clear">Clear event log</button></div>
+    </div>
+
+    <div class="tabpane" id="t3" hidden>
+      <p class="muted">Live checks against the PRD evals. E4 (comprehension) and the pilot evals E8 to E10 need real people and traffic.</p>
+      <div id="checks"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var $ = function(s){ return document.querySelector(s); };
+  var esc = function(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+
+  /* ---------- Copy (portal) ---------- */
+  var QUESTION = {
+    de: "Wie hoch ist Ihr Einkommen in diesem Monat oder in einem normalen Monat?",
+    en: "What is your income this month or in a normal month?"
+  };
+  var T = {
+    de: {
+      portal:"Ratenzahlung", step:"Schritt", of:"von",
+      stepNames:["Ihre Forderung","Ihre Situation","Einkommensnachweis","Plan wählen"],
+      s1h:"Ratenzahlung einrichten", s1p:"Wir richten gemeinsam einen Zahlungsplan ein. Das dauert wenige Minuten.",
+      claim:"Offene Forderung (Beispiel)", start:"Weiter",
+      s2h:"Ihre finanzielle Situation", unit:"€", income:"Einkommen in Euro",
+      hint:"Gemeint ist ein typischer Monat.", err:"Bitte geben Sie eine Zahl ein, zum Beispiel 1800.",
+      back:"Zurück", next:"Weiter",
+      s3h:"Einkommensnachweis", s3p:"Laden Sie einen Beleg hoch. In diesem Prototyp wird nur ein Beispielbeleg simuliert.",
+      pick:"Beispielbeleg auswählen", picked:"Beispielbeleg.pdf (Dummy)",
+      s4h:"Plan wählen", p1:"6 Raten à 80 €", p1s:"Schneller erledigt", p2:"12 Raten à 40 €", p2s:"Kleinere Rate pro Monat",
+      confirm:"Plan bestätigen", s5h:"Vereinbarung abgeschlossen", s5p:"Das war der Beispieldurchlauf.", again:"Neu starten",
+      more:"Mehr erfahren", less:"Weniger anzeigen",
+      why:"Warum wir fragen:", whyT:"Mit Ihrem Einkommen schlagen wir Raten vor, die zu Ihrem Monat passen.",
+      use:"Wofür:", useT:"Wir berechnen damit Ihren Ratenvorschlag.",
+      keep:"Wie lange:", keepT:function(n){ return "Wir speichern die Angabe "+n+(n===1?" Monat.":" Monate."); },
+      det:"Sie bestätigen erst am Ende einen Plan und können bis dahin jederzeit zurückgehen.",
+      longT:"Zusätzlich möchten wir Ihnen erklären, dass die Berechnung mehrere Faktoren berücksichtigt, darunter die Höhe Ihrer offenen Forderung, die gewünschte Laufzeit, die Anzahl der Raten und weitere Angaben, die im Verlauf der Fragen noch abgefragt werden könnten."
+    },
+    en: {
+      portal:"Payment plan", step:"Step", of:"of",
+      stepNames:["Your claim","Your situation","Income document","Choose a plan"],
+      s1h:"Set up a payment plan", s1p:"We set up a payment plan together. It takes a few minutes.",
+      claim:"Open claim (example)", start:"Continue",
+      s2h:"Your financial situation", unit:"€", income:"Income in euros",
+      hint:"This means a typical month.", err:"Please enter a number, for example 1800.",
+      back:"Back", next:"Continue",
+      s3h:"Income document", s3p:"Upload a document. This prototype only simulates a sample document.",
+      pick:"Choose sample document", picked:"Sample-document.pdf (dummy)",
+      s4h:"Choose a plan", p1:"6 instalments of €80", p1s:"Done sooner", p2:"12 instalments of €40", p2s:"Smaller payment each month",
+      confirm:"Confirm plan", s5h:"Agreement made", s5p:"That was the sample run.", again:"Start again",
+      more:"Learn more", less:"Show less",
+      why:"Why we ask:", whyT:"We use your income to suggest instalments that fit your month.",
+      use:"What for:", useT:"We calculate your instalment suggestion with it.",
+      keep:"How long:", keepT:function(n){ return "We keep this answer for "+n+(n===1?" month.":" months."); },
+      det:"You only confirm a plan at the end, and you can go back at any time until then.",
+      longT:"In addition, we would like to explain that the calculation takes several factors into account, including the size of your open claim, the term you want, the number of instalments and other details that may still be asked for later in the questions."
+    }
+  };
+
+  /* ---------- State ---------- */
+  var S = { lang:"de", device:"phone", zoom:1, seg:"variable_income", grp:"pilot", sw:true, approved:true,
+            months:"6", longCopy:false, periodHint:true, step:1, income:"", error:false, doc:false, plan:"", visits:0, log:[] };
+
+  function monthsValid(){ return /^\d{1,3}$/.test(S.months.trim()) && parseInt(S.months,10) > 0; }
+  function noteOn(){ return S.sw && S.grp === "pilot" && S.approved && monthsValid(); }
+
+  /* ---------- Events (never include the income value) ---------- */
+  function logEv(name){
+    var props = { segment:S.seg, group:S.grp, note_shown:(name==="income_question_shown"? noteOn() : undefined) };
+    if (props.note_shown === undefined) delete props.note_shown;
+    S.log.unshift({ t:new Date().toLocaleTimeString("en-GB"), name:name, props:props });
+    renderLog();
+  }
+  function renderLog(){
+    $("#evcount").textContent = S.log.length ? "(" + S.log.length + ")" : "";
+    $("#log").innerHTML = S.log.length ? S.log.map(function(e){
+      return "<li><b>" + esc(e.name) + "</b> <span class=\"muted\">" + esc(e.t) + "</span><br><code>" + esc(JSON.stringify(e.props)) + "</code></li>";
+    }).join("") : "<li class=\"muted\">No events yet.</li>";
+  }
+
+  /* ---------- Note ---------- */
+  function noteHTML(t){
+    var n = parseInt(S.months,10);
+    var h = '<aside class="note" id="note" role="note">' +
+      '<p class="short" id="note-short">' +
+      '<span data-part="why"><b>' + esc(t.why) + '</b> ' + esc(t.whyT) + '</span> ' +
+      '<span data-part="use"><b>' + esc(t.use) + '</b> ' + esc(t.useT) + '</span> ' +
+      '<span data-part="keep"><b>' + esc(t.keep) + '</b> ' + esc(t.keepT(n)) + '</span>' +
+      (S.longCopy ? ' <span data-part="extra">' + esc(t.longT) + '</span>' : '') + '</p>' +
+      '<button type="button" class="more" id="more" aria-expanded="false" aria-controls="note-det">' + esc(t.more) + '</button>' +
+      '<p class="det" id="note-det" hidden>' + esc(t.det) + '</p></aside>';
+    return h;
+  }
+
+  /* ---------- Screens ---------- */
+  function render(){
+    var t = T[S.lang], f = $("#frame");
+    f.className = "frame " + S.device;
+    f.style.fontSize = (16 * S.zoom) + "px";
+    document.documentElement.lang = S.lang === "de" ? "de" : "en";
+    var i = Math.min(S.step, 4);
+    var h = '<div class="bar"><span>' + esc(t.portal) + '</span><small>BU Collection</small></div>';
+    if (S.step <= 4) {
+      h += '<ol class="steps" aria-hidden="true">' + [1,2,3,4].map(function(n){ return '<li class="' + (n<i?'done':(n===i?'now':'')) + '"></li>'; }).join("") + '</ol>';
+      h += '<div class="steplabel">' + esc(t.step) + ' ' + i + ' ' + esc(t.of) + ' 4: ' + esc(t.stepNames[i-1]) + '</div>';
+    }
+    h += '<div class="screen" id="screen">';
+    if (S.step === 1) {
+      h += '<h2>' + esc(t.s1h) + '</h2><p>' + esc(t.s1p) + '</p><div class="box">' + esc(t.claim) + '<br><b>480,00 €</b></div>' +
+           '<div class="row"><button class="btn" id="go">' + esc(t.start) + '</button></div>';
+    } else if (S.step === 2) {
+      var hint = S.periodHint ? '<span class="hint" id="period-hint">' + esc(t.hint) + '</span>' : '';
+      h += '<h2>' + esc(t.s2h) + '</h2><div class="qwrap" id="qwrap">' +
+           '<label class="q" for="income" id="qlabel">' + esc(QUESTION[S.lang]) + hint + '</label>' +
+           (noteOn() ? noteHTML(t) : '') +
+           '<div class="field"><input id="income" name="income" type="text" inputmode="numeric" autocomplete="off" value="' + esc(S.income) + '" aria-label="' + esc(t.income) + '"' + (noteOn() ? ' aria-describedby="note"' : '') + '><span>' + esc(t.unit) + '</span></div>' +
+           '<div class="err" id="err" role="alert">' + (S.error ? esc(t.err) : '') + '</div></div>' +
+           '<div class="row"><button class="btn sec" id="back">' + esc(t.back) + '</button><button class="btn" id="go">' + esc(t.next) + '</button></div>';
+    } else if (S.step === 3) {
+      h += '<h2>' + esc(t.s3h) + '</h2><p>' + esc(t.s3p) + '</p>' +
+           (S.doc ? '<div class="box ok">' + esc(t.picked) + '</div>' : '<div class="row"><button class="btn sec" id="pick">' + esc(t.pick) + '</button></div>') +
+           '<div class="row"><button class="btn sec" id="back">' + esc(t.back) + '</button><button class="btn" id="go"' + (S.doc ? '' : ' disabled') + '>' + esc(t.next) + '</button></div>';
+    } else if (S.step === 4) {
+      h += '<h2>' + esc(t.s4h) + '</h2>' +
+           '<label class="plan"><input type="radio" name="plan" value="6"' + (S.plan==="6"?' checked':'') + '><span><b>' + esc(t.p1) + '</b><br><span class="hint">' + esc(t.p1s) + '</span></span></label>' +
+           '<label class="plan"><input type="radio" name="plan" value="12"' + (S.plan==="12"?' checked':'') + '><span><b>' + esc(t.p2) + '</b><br><span class="hint">' + esc(t.p2s) + '</span></span></label>' +
+           '<div class="row"><button class="btn sec" id="back">' + esc(t.back) + '</button><button class="btn" id="go"' + (S.plan ? '' : ' disabled') + '>' + esc(t.confirm) + '</button></div>';
+    } else {
+      h += '<h2>' + esc(t.s5h) + '</h2><p>' + esc(t.s5p) + '</p><div class="row"><button class="btn" id="again">' + esc(t.again) + '</button></div>';
+    }
+    h += '</div>';
+    f.innerHTML = h;
+    bindScreen();
+    updateChecks();
+  }
+
+  function bindScreen(){
+    var go = $("#go"), back = $("#back");
+    if (go) go.addEventListener("click", onNext);
+    if (back) back.addEventListener("click", function(){ S.error = false; goTo(S.step - 1); });
+    var again = $("#again"); if (again) again.addEventListener("click", restart);
+    var pick = $("#pick"); if (pick) pick.addEventListener("click", function(){ S.doc = true; render(); var g=$("#go"); if (g) g.focus(); });
+    var inc = $("#income");
+    if (inc) {
+      inc.addEventListener("input", function(){ S.income = inc.value; if (S.error && /^\d+([.,]\d{1,2})?$/.test(inc.value.trim())) { S.error = false; $("#err").textContent = ""; } });
+      inc.addEventListener("keydown", function(e){ if (e.key === "Enter") onNext(); });
+    }
+    var more = $("#more");
+    if (more) more.addEventListener("click", function(){
+      var d = $("#note-det"), open = more.getAttribute("aria-expanded") === "true";
+      d.hidden = open; more.setAttribute("aria-expanded", String(!open));
+      more.textContent = open ? T[S.lang].more : T[S.lang].less;
+      if (!open) logEv("income_details_opened");
+      updateChecks();
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="plan"]'), function(r){
+      r.addEventListener("change", function(){ S.plan = r.value; var g = $("#go"); if (g) g.disabled = false; });
+    });
+  }
+
+  function onNext(){
+    if (S.step === 2) {
+      if (!/^\d+([.,]\d{1,2})?$/.test(S.income.trim())) { S.error = true; $("#err").textContent = T[S.lang].err; $("#income").focus(); return; }
+      logEv("income_question_passed");
+    }
+    if (S.step === 4) { goTo(5); return; }
+    goTo(S.step + 1);
+  }
+
+  function goTo(n){
+    S.step = Math.max(1, n);
+    if (S.step === 2) { S.visits++; logEv("income_question_shown"); }
+    if (S.step === 3) logEv("income_document_step_reached");
+    if (S.step === 5) logEv("agreement_made");
+    render();
+    var s = $("#screen"); if (s) { var h = s.querySelector("h2"); if (h) { h.setAttribute("tabindex","-1"); } }
+  }
+  function restart(){ S.step = 1; S.income = ""; S.doc = false; S.plan = ""; S.error = false; logEv("journey_started"); render(); }
+
+  /* ---------- Checks ---------- */
+  function lum(rgb){
+    var c = rgb.map(function(v){ v/=255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); });
+    return .2126*c[0] + .7152*c[1] + .0722*c[2];
+  }
+  function parseRGB(s){ var m = s.match(/[\d.]+/g); return m ? m.slice(0,3).map(Number) : [0,0,0]; }
+  function words(el){
+    var txt = el.querySelector("#note-short").textContent + " " + el.querySelector("#note-det").textContent;
+    return txt.trim().split(/\s+/).filter(Boolean).length;
+  }
+  function updateChecks(){
+    var C = [], note = $("#note"), input = $("#income"), onQ = S.step === 2;
+    var gatesOk = S.approved && monthsValid();
+
+    // E1 placement
+    if (!onQ) C.push(["info","E1 Placement","Go to the income question to run this check."]);
+    else if (!note) C.push(["info","E1 Placement", "Note is off (" + (S.grp==="control" ? "control group" : (!S.sw ? "switch off" : "gates not met")) + "). Question and field are unchanged."]);
+    else {
+      var same = note.closest("#qwrap") && input.closest("#qwrap");
+      var labelOk = $("#qlabel").textContent.indexOf(QUESTION[S.lang]) === 0;
+      var shortVisible = $("#note-short").offsetParent !== null;
+      var fr = $("#frame"), noScroll = fr.scrollWidth <= fr.clientWidth + 1;
+      var ok = same && labelOk && shortVisible && noScroll;
+      C.push([ok?"pass":"fail","E1 Placement (FR-1, FR-7)", "Same block as the question: " + (!!same) + ". Visible without a tap: " + shortVisible + ". Label unchanged: " + labelOk + ". No sideways scroll in the frame: " + noScroll + "."]);
+    }
+    // E2 content
+    if (!note) C.push(["info","E2 Content","No note rendered."]);
+    else {
+      var parts = note.querySelectorAll("[data-part='why'],[data-part='use'],[data-part='keep']").length;
+      var dur = /\d/.test(note.querySelector("[data-part='keep']").textContent);
+      var wc = words(note);
+      C.push([(parts===3 && dur && wc<=60)?"pass":"fail","E2 Content (FR-2, FR-3, FR-4)", parts + " of 3 elements, concrete duration: " + dur + ", " + wc + " words (limit 60)."]);
+    }
+    // E3 approval
+    C.push([gatesOk && S.sw ? "pass":"fail","E3 Approval (FR-6)", S.approved ? "Approval flag set." : "No approval record: release blocked."]);
+    // E4 manual
+    C.push(["info","E4 Comprehension (FR-5)","Manual test: at least 4 of 5 people, including 1 shift worker, explain why income is asked and how long it is kept."]);
+    // E5 accessibility
+    if (!note) C.push(["info","E5 Accessibility (FR-9)","No note rendered."]);
+    else {
+      var cs = getComputedStyle(note), a = lum(parseRGB(cs.color)), b = lum(parseRGB(cs.backgroundColor));
+      var ratio = (Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+      var desc = input && (input.getAttribute("aria-describedby")||"").indexOf("note") > -1;
+      C.push([(ratio>=4.5 && desc)?"pass":"fail","E5 Accessibility (FR-9)","Contrast " + ratio.toFixed(1) + ":1 (need 4.5). Field is described by the note for screen readers: " + desc + ". Use the text size control for 200%."]);
+    }
+    // E6 logging
+    var shown = S.log.filter(function(e){ return e.name==="income_question_shown"; }).length;
+    var allowed = ["segment","group","note_shown"];
+    var clean = S.log.every(function(e){ return Object.keys(e.props).every(function(k){ return allowed.indexOf(k) > -1; }); });
+    C.push([(clean && shown>=S.visits)?"pass":"fail","E6 Logging (FR-8)", shown + " income_question_shown events for " + S.visits + " visits. Only segment, group and note_shown are logged; the income value never is."]);
+    // E7 safe default
+    if (gatesOk && S.sw) C.push(["info","E7 Safe default","Untick approval or clear the retention period to test: the note must disappear with no placeholder."]);
+    else {
+      var txt = $("#frame").textContent;
+      var leak = !!note || /[\[\]{}]|undefined|NaN/.test(txt);
+      C.push([leak?"fail":"pass","E7 Safe default", leak ? "A note or placeholder text is visible." : "Feature is off and no placeholder text is shown."]);
+    }
+    var fails = C.filter(function(c){ return c[0]==="fail"; }).length;
+    $("#chkcount").textContent = fails ? "(" + fails + " fail)" : "";
+    $("#checks").innerHTML = C.map(function(c){
+      return '<div class="chk"><span class="s ' + c[0] + '">' + c[0].toUpperCase() + '</span><b>' + esc(c[1]) + '</b><small>' + esc(c[2]) + '</small></div>';
+    }).join("");
+  }
+
+  /* ---------- Controls ---------- */
+  function on(id, ev, fn){ $(id).addEventListener(ev, fn); }
+  on("#c-lang","change",function(e){ S.lang = e.target.value; render(); });
+  on("#c-dev","change",function(e){ S.device = e.target.value; render(); });
+  on("#c-zoom","change",function(e){ S.zoom = parseFloat(e.target.value); render(); });
+  on("#c-seg","change",function(e){ S.seg = e.target.value; });
+  on("#c-grp","change",function(e){ S.grp = e.target.value; render(); });
+  on("#c-sw","change",function(e){ S.sw = e.target.checked; render(); });
+  on("#c-ap","change",function(e){ S.approved = e.target.checked; render(); });
+  on("#c-ret","input",function(e){ S.months = e.target.value; render(); });
+  on("#c-hint","change",function(e){ S.periodHint = e.target.checked; render(); });
+  on("#c-long","change",function(e){ S.longCopy = e.target.checked; render(); });
+  on("#b-jump","click",function(){ goTo(2); });
+  on("#b-restart","click",restart);
+  on("#b-clear","click",function(){ S.log = []; S.visits = 0; renderLog(); updateChecks(); });
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tabs button"));
+  tabs.forEach(function(b){
+    b.addEventListener("click", function(){
+      tabs.forEach(function(x){ x.setAttribute("aria-selected", String(x===b)); $("#"+x.dataset.tab).hidden = x!==b; });
+      updateChecks();
+    });
+  });
+
+  logEv("journey_started");
+  render();
+})();
+</script>
+</body>
+</html>
